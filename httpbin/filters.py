@@ -41,11 +41,7 @@ def gzip(f, *args, **kwargs):
 
     data = f(*args, **kwargs)
 
-    if isinstance(data, Response):
-        content = data.data
-    else:
-        content = data
-
+    content = data.data if isinstance(data, Response) else data
     gzip_buffer = BytesIO()
     gzip_file = gzip2.GzipFile(
         mode='wb',
@@ -73,11 +69,7 @@ def deflate(f, *args, **kwargs):
 
     data = f(*args, **kwargs)
 
-    if isinstance(data, Response):
-        content = data.data
-    else:
-        content = data
-
+    content = data.data if isinstance(data, Response) else data
     deflater = zlib.compressobj()
     deflated_data = deflater.compress(content)
     deflated_data += deflater.flush()
@@ -98,11 +90,7 @@ def brotli(f, *args, **kwargs):
 
     data = f(*args, **kwargs)
 
-    if isinstance(data, Response):
-        content = data.data
-    else:
-        content = data
-
+    content = data.data if isinstance(data, Response) else data
     deflated_data = _brotli.compress(content)
 
     if isinstance(data, Response):

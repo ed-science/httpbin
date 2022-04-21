@@ -109,7 +109,7 @@ def json_safe(string, content_type='application/octet-stream'):
 def get_files():
     """Returns files dict from request context."""
 
-    files = dict()
+    files = {}
 
     for k, v in request.files.items():
         content_type = request.files[k].content_type or 'application/octet-stream'
@@ -143,14 +143,13 @@ def semiflatten(multi):
     """Convert a MutiDict into a regular dict. If there are more than one value
     for a key, the result will have a list of values for the key. Otherwise it
     will have the plain value."""
-    if multi:
-        result = multi.to_dict(flat=False)
-        for k, v in result.items():
-            if len(v) == 1:
-                result[k] = v[0]
-        return result
-    else:
+    if not multi:
         return multi
+    result = multi.to_dict(flat=False)
+    for k, v in result.items():
+        if len(v) == 1:
+            result[k] = v[0]
+    return result
 
 def get_url(request):
     """
@@ -194,12 +193,9 @@ def get_dict(*keys, **extras):
         method=request.method,
     )
 
-    out_d = dict()
+    out_d = {key: d.get(key) for key in keys}
 
-    for key in keys:
-        out_d[key] = d.get(key)
-
-    out_d.update(extras)
+    out_d |= extras
 
     return out_d
 
@@ -300,7 +296,7 @@ def HA2(credentials, request, algorithm):
     elif credentials.get("qop") == "auth-int":
         for k in 'method', 'uri', 'body':
             if k not in request:
-                raise ValueError("%s required" % k)
+                raise ValueError(f"{k} required")
         A2 = b":".join([request['method'].encode('utf-8'),
                         request['uri'].encode('utf-8'),
                         H(request['body'], algorithm).encode('utf-8')])
@@ -336,10 +332,10 @@ def response(credentials, password, request):
             credentials.get('nonce', '').encode('utf-8'),
             HA2_value.encode('utf-8')
         ]), algorithm)
-    elif credentials.get('qop') == 'auth' or credentials.get('qop') == 'auth-int':
+    elif credentials.get('qop') in ['auth', 'auth-int']:
         for k in 'nonce', 'nc', 'cnonce', 'qop':
             if k not in credentials:
-                raise ValueError("%s required for response H" % k)
+                raise ValueError(f"{k} required for response H")
         response = H(b":".join([HA1_value.encode('utf-8'),
                                credentials.get('nonce').encode('utf-8'),
                                credentials.get('nc').encode('utf-8'),
@@ -361,7 +357,7 @@ def check_digest_auth(user, passwd):
             return
         request_uri = request.script_root + request.path
         if request.query_string:
-            request_uri +=  '?' + request.query_string
+            request_uri += f'?{request.query_string}'
         response_hash = response(credentials, passwd, dict(uri=request_uri,
                                                            body=request.data,
                                                            method=request.method))
@@ -437,7 +433,7 @@ def parse_multi_value_header(header_str):
         for part in parts:
             match = re.search('\s*(W/)?\"?([^"]*)\"?\s*', part)
             if match is not None:
-                parsed_parts.append(match.group(2))
+                parsed_parts.append(match[2])
     return parsed_parts
 
 

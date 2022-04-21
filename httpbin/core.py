@@ -204,13 +204,13 @@ def before_request():
         if server.lower().startswith("gunicorn/"):
             if "wsgi.input_terminated" in request.environ:
                 app.logger.debug(
-                    "environ wsgi.input_terminated already set, keeping: %s"
-                    % request.environ["wsgi.input_terminated"]
+                    f'environ wsgi.input_terminated already set, keeping: {request.environ["wsgi.input_terminated"]}'
                 )
+
             else:
                 request.environ["wsgi.input_terminated"] = 1
         else:
-            abort(501, "Chunked requests are not supported for server %s" % server)
+            abort(501, f"Chunked requests are not supported for server {server}")
 
 
 @app.after_request
@@ -963,10 +963,11 @@ def basic_auth(user="user", passwd="passwd"):
         description: Unsuccessful authentication.
     """
 
-    if not check_basic_auth(user, passwd):
-        return status_code(401)
-
-    return jsonify(authenticated=True, user=user)
+    return (
+        jsonify(authenticated=True, user=user)
+        if check_basic_auth(user, passwd)
+        else status_code(401)
+    )
 
 
 @app.route("/hidden-basic-auth/<user>/<passwd>")
@@ -991,9 +992,11 @@ def hidden_basic_auth(user="user", passwd="passwd"):
         description: Unsuccessful authentication.
     """
 
-    if not check_basic_auth(user, passwd):
-        return status_code(404)
-    return jsonify(authenticated=True, user=user)
+    return (
+        jsonify(authenticated=True, user=user)
+        if check_basic_auth(user, passwd)
+        else status_code(404)
+    )
 
 
 @app.route("/bearer")
@@ -1270,7 +1273,7 @@ def drip():
     pause = duration / numbytes
 
     def generate_bytes():
-        for i in xrange(numbytes):
+        for _ in xrange(numbytes):
             yield b"*"
             time.sleep(pause)
 
@@ -1335,13 +1338,12 @@ def cache():
         "If-None-Match"
     )
 
-    if is_conditional is None:
-        response = view_get()
-        response.headers["Last-Modified"] = http_date()
-        response.headers["ETag"] = uuid.uuid4().hex
-        return response
-    else:
+    if is_conditional is not None:
         return status_code(304)
+    response = view_get()
+    response.headers["Last-Modified"] = http_date()
+    response.headers["ETag"] = uuid.uuid4().hex
+    return response
 
 
 @app.route("/etag/<etag>", methods=("GET",))
@@ -1445,7 +1447,7 @@ def random_bytes(n):
     response = make_response()
 
     # Note: can't just use os.urandom here because it ignores the seed
-    response.data = bytearray(random.randint(0, 255) for i in range(n))
+    response.data = bytearray(random.randint(0, 255) for _ in range(n))
     response.content_type = "application/octet-stream"
     return response
 
@@ -1480,7 +1482,7 @@ def stream_random_bytes(n):
     def generate_bytes():
         chunks = bytearray()
 
-        for i in xrange(n):
+        for _ in xrange(n):
             chunks.append(random.randint(0, 255))
             if len(chunks) == chunk_size:
                 yield (bytes(chunks))

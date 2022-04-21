@@ -119,10 +119,7 @@ class HttpbinTestCase(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
  
     def get_data(self, response):
-        if 'get_data' in dir(response):
-            return response.get_data()
-        else:
-            return response.data
+        return response.get_data() if 'get_data' in dir(response) else response.data
 
     def test_response_headers_simple(self):
         supported_verbs = ['get', 'post']
@@ -196,11 +193,11 @@ class HttpbinTestCase(unittest.TestCase):
         self.assertEqual(json.loads(response.data.decode('utf-8'))['data'], u'оживлённым')
 
     def test_post_file_with_missing_content_type_header(self):
-        # I built up the form data manually here because I couldn't find a way
-        # to convince the werkzeug test client to send files without the
-        # content-type of the file set.
-        data = '--bound\r\nContent-Disposition: form-data; name="media"; '
-        data += 'filename="test.bin"\r\n\r\n\xa5\xc6\n--bound--\r\n'
+        data = (
+            '--bound\r\nContent-Disposition: form-data; name="media"; '
+            + 'filename="test.bin"\r\n\r\n\xa5\xc6\n--bound--\r\n'
+        )
+
         response = self.app.post(
             '/post',
             content_type='multipart/form-data; boundary=bound',
@@ -311,9 +308,9 @@ class HttpbinTestCase(unittest.TestCase):
     def test_bearer_auth(self):
         token = 'abcd1234'
         response = self.app.get(
-            '/bearer',
-            headers={'Authorization': 'Bearer ' + token}
+            '/bearer', headers={'Authorization': f'Bearer {token}'}
         )
+
         self.assertEqual(response.status_code, 200)
         assert json.loads(response.data.decode('utf-8'))['token'] == token
 
@@ -389,7 +386,7 @@ class HttpbinTestCase(unittest.TestCase):
         authorized_response, nonce = self._test_digest_response_for_auth_request(header, username, password, qop, uri, body)
         self.assertEqual(authorized_response.status_code, 200)
 
-        if None == stale_after :
+        if stale_after is None:
             return
 
         # test stale after scenerio
@@ -410,7 +407,7 @@ class HttpbinTestCase(unittest.TestCase):
     def _digest_auth_create_uri(self, username, password, qop, algorithm, stale_after):
         uri = '/digest-auth/{0}/{1}/{2}'.format(qop or 'wrong-qop', username, password)
         if algorithm:
-            uri += '/' + algorithm
+            uri += f'/{algorithm}'
         if stale_after:
             uri += '/{0}'.format(stale_after)
         return uri
